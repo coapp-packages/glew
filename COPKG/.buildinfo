@@ -1,0 +1,160 @@
+/* target information */
+@import "version.inc";
+
+#product-info  {
+	product-name: "glew";
+	version: "1.15";
+	original-source-location: "ftp://ftp.gnu.org/gnu/glew/glew-1.15.tar.gz";
+	original-source-website: "http://www.gnu.org/software/glew/";
+	license: "GPL";
+	packager: "Hamish C";
+}
+
+test {
+    set: {
+        COMPILERS="${COMPILERS??vc10}";
+        PLAT="${PLAT??x86,x64}";
+    };
+
+    default : false;
+    uses: release;
+    build-command: @"
+	    for %%A in (${COMPILERS}) do (
+            for %%B in (${PLAT}) do (
+                call :testroutine ""%%A"" ""%%B""
+            )
+        )
+        goto :eof
+
+:testroutine
+        pushd build.%~1\%~2\Release\bin\
+        
+        rem do tests here
+
+        goto passed
+:failed
+        echo ""Test(s) failed for (%~1,%~2)""
+:passed
+        popd
+        goto :eof
+    ";
+};
+
+package {
+    set: COMP="${COMP??vc10}";
+    set: PLAT="${PLAT??x86, x64}";
+    default : false;
+    uses : sign;
+    
+    targets: { 
+        @"copkg\glew[vc10]-${package-version}-x86.msi",
+        @"copkg\glew-dev[vc10]-${package-version}-x86.msi",
+        @"copkg\glew-dev-common-${package-version}-any.msi",
+        @"copkg\glew[vc10]-${package-version}-x64.msi",
+        @"copkg\glew-dev[vc10]-${package-version}-x64.msi"
+    };
+    
+    build-command : @"
+         pushd COPKG
+        autopackage glew-dev-common.autopkg || goto failed
+        
+        for %%A in (${COMP}) do (
+            for %%B in (${PLAT}) do (
+                autopackage --COMP=%%A --PLAT=%%B glew.autopkg glew-dev.autopkg || goto failed
+            )
+        )
+        popd
+        ptk update-version
+    ";
+
+	clean-command: @"del COPKG\*.msi COPKG\*.wixpdb";
+};
+
+update-version {
+    default : false;
+    
+    build-command : @"
+        REM auto-increment version.inc file...
+        
+        pushd COPKG
+        setlocal EnableDelayedExpansion
+        for /F ""tokens=4,5,6,7  delims=.; "" %%v in (version.inc) do (
+            set /a build=%%y + 1
+            set VERSTRING=#define { package-version: %%v.%%w.%%x.!build!; }
+        )
+        echo !VERSTRING! > version.inc
+        popd
+    ";
+}
+
+release {
+    set: {
+        COMPILERS="${COMPILERS??vc10}";
+        PLAT="${PLAT??x86, x64}";
+        CONFIG="Release";
+    };
+
+    build-command: @"
+        for %%A in (${COMPILERS}) do (
+            for %%B in (${PLAT}) do (
+			    ptk -nologo base --CONFIG=${CONFIG} --COMP=%%A --PLAT=%%B
+		    )
+        )
+    ";
+};
+
+sign {
+    default : false;
+    uses: release;
+    build-command: @"simplesigner.exe --nologo --sign output\**.dll output\**.exe";
+};
+
+x86 {
+    set: PLAT=x86;
+    uses: base;
+};
+
+x64 {
+    set: PLAT=x64;
+    uses: base;
+};
+
+base {
+    set: {
+        CONFIG="${CONFIG??Release}";
+        COMP="${COMP??vc10}";
+        PLAT="${PLAT??x86}";
+    };
+
+    compiler:"${COMP}";
+    platform:"${PLAT}";
+
+    targets: { 
+		"output\${COMP}\${PLAT}\${CONFIG}\bin\glew32.dll",
+        "output\${COMP}\${PLAT}\${CONFIG}\bin\glew32.lib",
+        "output\${COMP}\${PLAT}\${CONFIG}\bin\glew32s.lib",
+        "output\${COMP}\${PLAT}\${CONFIG}\bin\glewinfo.exe",
+        "output\${COMP}\${PLAT}\${CONFIG}\bin\visualinfo.exe",
+	};
+	
+    build-command:@"
+        if ""${PLAT}"" == ""x86"" (
+            msbuild /p:Platform=win32 /p:Configuration=${CONFIG} build\${COMP}\glew.sln
+        ) else (
+            msbuild /p:Platform=${PLAT} /p:Configuration=${CONFIG} build\${COMP}\glew.sln
+        )
+	";
+    
+    clean-command:@"
+        if ""${PLAT}"" == ""x86"" (
+            msbuild /p:Platform=win32 /p:Configuration=${CONFIG} /target:Clean build\${COMP}\glew.sln
+        ) else (
+            msbuild /p:Platform=${PLAT} /p:Configuration=${CONFIG} /target:Clean build\${COMP}\glew.sln
+        )
+
+        if exist output rmdir /s /q output > nul 2> nul
+        rem due to bug in vs clean up this folder too (has log files in it)
+        if exist build\output rmdir /s /q build\output > nul 2> nul
+        del /S /Q /A - *.sdf *.suo *.user *.exe *.pdb > nul 2>NUL
+    ";
+};

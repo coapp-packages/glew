@@ -1,0 +1,80 @@
+@import "version.inc";
+@import "outercurve.inc";
+@import "details.inc";
+
+#define { 
+    flavor: "${COMP??vc10}"; 
+    arch : "${PLAT??x86}";
+}
+
+package {
+    name: "${pkg-name}[${flavor}]";
+    version: "${package-version}";
+    arch : "${arch}";
+    display-name: "${display-name}";
+    location: "http://coapp.org/repository/${OutputFilename}";
+    feed: "http://coapp.org/repository/packages.atom.xml";
+    publisher: "CoApp Project";
+}
+
+metadata {
+    summary: "${display-name}";
+    description:  "${product-description}"; 
+    icon: "${pkg-name}.png";
+    author-version : "${author-version}";
+    bug-tracker: "https://github.com/coapp-packages/${pkg-name}/issues";
+    stability : "0";
+    licenses : {
+        GPL
+    };
+}
+
+license[GPL] {
+    license-url: "";
+    license-type: "GPL";
+}
+
+compatability-policy {
+    minimum: "1.7.0";
+    maximum: "${OneLessThanCurrent}"; // this is the default
+    versions : {
+        "1.0",
+    }; // if not specified, find the versions by looking at the feeds and finding all the major/minor versions in range.
+}
+
+files[dlls] {
+    root: @"..\output\vc10\${arch}\Release\bin";
+  
+    include: {
+        "*.dll",
+    };
+    
+    trim-path: all;
+};
+
+files[files-to-sign] {
+    include: { 
+        dlls
+    };    
+}
+
+assembly[${pkg-name}[${flavor}]] {
+    include : {
+        dlls
+    };
+}
+
+signing {
+    attributes : {
+        company="Outercurve Foundation",
+        description="${display-name}",
+        product-name="${display-name}",
+        product-version="${package-version}",
+        file-version="${package-version}",
+    };
+    
+    replace-signature: true; 
+    include: { 
+        files-to-sign
+    };    
+}
