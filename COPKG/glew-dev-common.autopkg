@@ -22,7 +22,7 @@ metadata {
 }
 
 files[headers] {
-    root: @"..\include\";
+    root: @"..\include\GL";
 
     include: {
         "*",
@@ -30,7 +30,7 @@ files[headers] {
     
     trim-path:all;
     
-    destination-path:"include";
+    destination:"GL";
 }
 
 
