@@ -1,80 +1,67 @@
-@import "version.inc";
-@import "outercurve.inc";
-@import "details.inc";
 
-#define { 
-    flavor: "${COMP??vc10}"; 
-    arch : "${PLAT??x86}";
-}
-
-package {
-    name: "${pkg-name}[${flavor}]";
-    version: "${package-version}";
-    arch : "${arch}";
-    display-name: "${display-name}";
-    location: "http://coapp.org/repository/${OutputFilename}";
-    feed: "http://coapp.org/repository/packages.atom.xml";
-    publisher: "CoApp Project";
-}
-
-metadata {
-    summary: "${display-name}";
-    description:  "${product-description}"; 
-    icon: "${pkg-name}.png";
-    author-version : "${author-version}";
-    bug-tracker: "https://github.com/coapp-packages/${pkg-name}/issues";
-    stability : "0";
-    licenses : {
-        GPL
-    };
-}
-
-license[GPL] {
-    license-url: "";
-    license-type: "GPL";
-}
-
-compatability-policy {
-    minimum: "1.7.0";
-    maximum: "${OneLessThanCurrent}"; // this is the default
-    versions : {
-        "1.0",
-    }; // if not specified, find the versions by looking at the feeds and finding all the major/minor versions in range.
-}
-
-files[dlls] {
-    root: @"..\output\vc10\${arch}\Release\bin";
-  
-    include: {
-        "*.dll",
-    };
-    
-    trim-path: all;
+PlatformToolsets : {
+	V110, V100
 };
 
-files[files-to-sign] {
-    include: { 
-        dlls
-    };    
-}
+Architectures : {
+	Win32, x64
+};
 
-assembly[${pkg-name}[${flavor}]] {
-    include : {
-        dlls
-    };
-}
+ReleaseOrDebug : {
+	Release, Debug
+};
 
-signing {
-    attributes : {
-        company="Outercurve Foundation",
-        description="${display-name}",
-        product-name="${display-name}",
-        product-version="${package-version}",
-        file-version="${package-version}",
+Linkage : {
+	Dynamic, Static, ltcg
+};
+
+
+nuget {
+    nuspec {
+        id: glew;
+        version: 1.9.0.1;
+        title: glew;
+        authors: {glew contributors,Garrett Serack};
+        owners: {Garrett Serack, CoApp Project};
+        licenseUrl: "https://github.com/coapp-packages/glew/blob/master/LICENSE.txt";
+        projectUrl: "https://github.com/coapp-packages/glew";
+        // iconUrl: 
+        requireLicenseAcceptance:false;
+        summary:"The OpenGL Extension Wrangler Library (GLEW)";
+        description: @"The OpenGL Extension Wrangler Library (GLEW) is a cross-platform open-source C/C++ extension loading library. GLEW provides efficient run-time mechanisms for determining which OpenGL extensions are supported on the target platform. OpenGL core and extension functionality is exposed in a single header file. 
+	
+	Original Project Location: http://glew.sourceforge.net/
+	";
+        releaseNotes: "";
+        copyright: Copyright 2013; 
+        tags: { glew, native, CoApp };
     };
-    
-    replace-signature: true; 
-    include: { 
-        files-to-sign
-    };    
-}
+	
+	files { 
+		alsoInclude: {
+			#destination = ${d_include}\GL;
+			..\include\**\*.h
+		};
+		
+		source: {
+			..\src\**\*.c,
+		};
+		
+		(PlatformToolsets, Architectures, ReleaseOrDebug, Linkage) => {
+			[${0},${1},${2},${3}] {
+				lib:     { output\${0}\${1}\${2}\${3}\*.lib };
+			};
+		};
+		
+		(PlatformToolsets, Architectures, ReleaseOrDebug, "dynamic") => {
+			[${0},${1},${2},${3}] {
+				bin:     { output\${0}\${1}\${2}\${3}\*.dll };
+				symbols: { output\${0}\${1}\${2}\${3}\*.pdb };
+			};
+		};
+	};
+
+	targets {
+		Defines += HAS_GLEW;
+	};
+};
